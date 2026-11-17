@@ -78,8 +78,11 @@ app.route(
     .use("*", async (ctx, next) => {
       if (ctx.req.path === "/pg/health") return next();
       const token = ctx.req.header("authorization")?.replace(/^Bearer\s+/i, "");
-      if (config.token && token !== config.token) {
-        return errorResponse(ctx, 401, "invalid_token");
+      // Fail closed: PG_PROVIDER_TOKEN grants full SQL/DDL access to the
+      // provider database, so an unset token must disable the service, not
+      // open it to unauthenticated callers.
+      if (!config.token || token !== config.token) {
+        return errorResponse(ctx, 401, config.token ? "invalid_token" : "token_not_configured");
       }
       await next();
     })
