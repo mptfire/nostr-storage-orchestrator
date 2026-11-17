@@ -215,13 +215,19 @@ export function optionalAuth(
 
 /**
  * Verify that an auth event's x tags include the given hash.
- * Required for upload, delete operations per BUD-11.
+ * Required for upload, delete operations per BUD-11: the x tag is what binds
+ * the token to a specific blob. BUD-11 makes x REQUIRED for upload and
+ * delete, so an auth event with no x tags at all is rejected here —
+ * otherwise an upload token would also authorize claiming ownership of an
+ * existing blob via the dedup path (and then deleting it).
  */
 export function requireXTag(auth: NostrEvent, hash: string): void {
   const xTags = auth.tags.filter((t) => t[0] === "x");
-  if (xTags.length > 0 && !xTags.some((t) => t[1] === hash)) {
+  if (!xTags.some((t) => t[1] === hash)) {
     throw new HTTPException(403, {
-      message: `Auth token does not authorize operation on blob ${hash}`,
+      message: xTags.length
+        ? `Auth token does not authorize operation on blob ${hash}`
+        : `Auth token is missing the required x tag for blob ${hash}`,
     });
   }
 }

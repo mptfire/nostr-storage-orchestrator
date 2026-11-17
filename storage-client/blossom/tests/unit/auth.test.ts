@@ -274,10 +274,15 @@ Deno.test("requireAuth: returns event when auth and type match", () => {
 const TEST_HASH = "a".repeat(64);
 const OTHER_HASH = "b".repeat(64);
 
-Deno.test("requireXTag: no x tags → no throw (open auth event)", () => {
+Deno.test("requireXTag: no x tags → throws 403 (BUD-11 requires x on upload/delete)", () => {
   const event = makeEvent({});
-  // Should not throw — open upload token
-  requireXTag(event, TEST_HASH);
+  // An x-less token binds to no blob; combined with the upload dedup path it
+  // would let the caller claim ownership of any existing blob.
+  assertThrows(
+    () => requireXTag(event, TEST_HASH),
+    HTTPException,
+    "missing the required x tag",
+  );
 });
 
 Deno.test("requireXTag: x tag present and hash matches → no throw", () => {
